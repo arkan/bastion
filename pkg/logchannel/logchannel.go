@@ -3,7 +3,6 @@ package logchannel
 import (
 	"encoding/binary"
 	"io"
-	"os"
 	"syscall"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 
 type logChannel struct {
 	channel ssh.Channel
-	file    *os.File
+	writer  io.WriteCloser
 }
 
 func writeTTYRecHeader(fd io.Writer, length int) {
@@ -25,15 +24,10 @@ func writeTTYRecHeader(fd io.Writer, length int) {
 	binary.Write(fd, binary.LittleEndian, int32(length))
 }
 
-func New(channel ssh.Channel) *logChannel {
-	f, err := os.OpenFile("session.ttyrec", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0640)
-	if err != nil {
-		panic(err)
-	}
-
+func New(channel ssh.Channel, writer io.WriteCloser) *logChannel {
 	return &logChannel{
 		channel: channel,
-		file:    f,
+		writer:  writer,
 	}
 }
 
@@ -42,14 +36,14 @@ func (l *logChannel) Read(data []byte) (int, error) {
 }
 
 func (l *logChannel) Write(data []byte) (int, error) {
-	writeTTYRecHeader(l.file, len(data))
-	l.file.Write(data)
+	writeTTYRecHeader(l.writer, len(data))
+	l.writer.Write(data)
 
 	return l.channel.Write(data)
 }
 
 func (l *logChannel) Close() error {
-	l.file.Close()
+	l.writer.Close()
 
 	return l.channel.Close()
 }
