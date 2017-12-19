@@ -65,7 +65,12 @@ func main() {
 }
 
 func proxy(reqs1, reqs2 <-chan *ssh.Request, channel1 ssh.Channel, channel2 ssh.Channel) {
-	wrappedChannel1 := logchannel.New(channel1)
+	f, err := os.OpenFile("session.ttyrec", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0640)
+	if err != nil {
+		panic(err)
+	}
+
+	wrappedChannel1 := logchannel.New(channel1, f)
 	var closer sync.Once
 	closeFunc := func() {
 		wrappedChannel1.Close()
